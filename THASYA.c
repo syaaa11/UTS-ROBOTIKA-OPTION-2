@@ -12,16 +12,16 @@
 #define DECREASE_FACTOR 0.9
 #define BACK_SLOWDOWN 0.9
 
-// gaussian function
+// fungsi gaussian
 double gaussian(double x, double mu, double sigma) {
   return (1.0 / (sigma * sqrt(2.0 * M_PI))) * exp(-((x - mu) * (x - mu)) / (2 * sigma * sigma));
 }
 
 int main(int argc, char **argv) {
-  // init webots stuff
+  // init barang webots
   wb_robot_init();
 
-  // get devices
+  // mendapatkan perangkat
   WbDeviceTag lms291 = wb_robot_get_device("Sick LMS 291");
   WbDeviceTag front_left_wheel = wb_robot_get_device("front left wheel");
   WbDeviceTag front_right_wheel = wb_robot_get_device("front right wheel");
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   const double range_threshold = max_range / 20.0;
   const float *lms291_values = NULL;
 
-  // init braitenberg coefficient
+  // init koefisien braitenberg
   double *const braitenberg_coefficients = (double *)malloc(sizeof(double) * lms291_width);
   int i, j;
   for (i = 0; i < lms291_width; ++i)
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   wb_motor_set_position(back_left_wheel, INFINITY);
   wb_motor_set_position(back_right_wheel, INFINITY);
 
-  // init speed for each wheel
+  // init kecepatan masing masing roda
   double back_left_speed = 0.0, back_right_speed = 0.0;
   double front_left_speed = 0.0, front_right_speed = 0.0;
   wb_motor_set_velocity(front_left_wheel, front_left_speed);
@@ -56,27 +56,27 @@ int main(int argc, char **argv) {
   wb_motor_set_velocity(back_left_wheel, back_left_speed);
   wb_motor_set_velocity(back_right_wheel, back_right_speed);
 
-  // init dynamic variables
+  // init variabel dinamis
   double left_obstacle = 0.0, right_obstacle = 0.0;
 
-  // control loop
+  // loop kontrol
   while (wb_robot_step(TIME_STEP) != -1) {
-    // get lidar values
+    // mendapatkan nilai lidar
     lms291_values = wb_lidar_get_range_image(lms291);
-    // apply the braitenberg coefficients on the resulted values of the lms291
-    // near obstacle sensed on the left side
+    // menerapkan koefisien braitenberg pada nilai yang dihasilkan dari lms291
+    // halangan dekat terasa di sisi kiri
     for (i = 0; i < half_width; ++i) {
       if (lms291_values[i] < range_threshold)  // far obstacles are ignored
         left_obstacle += braitenberg_coefficients[i] * (1.0 - lms291_values[i] / max_range);
-      // near obstacle sensed on the right side
+     // halangan dekat terasa di sisi kanan
       j = lms291_width - i - 1;
       if (lms291_values[j] < range_threshold)
         right_obstacle += braitenberg_coefficients[i] * (1.0 - lms291_values[j] / max_range);
     }
-    // overall front obstacle
+    // hambatan depan secara keseluruhan
     const double obstacle = left_obstacle + right_obstacle;
-    // compute the speed according to the information on
-    // obstacles
+    // menghitung kecepatan sesuai dengan informasi pada
+    // hambatan
     if (obstacle > OBSTACLE_THRESHOLD) {
       const double speed_factor = (1.0 - DECREASE_FACTOR * obstacle) * MAX_SPEED / obstacle;
       front_left_speed = speed_factor * left_obstacle;
@@ -89,13 +89,13 @@ int main(int argc, char **argv) {
       front_left_speed = CRUISING_SPEED;
       front_right_speed = CRUISING_SPEED;
     }
-    // set actuators
+    // set aktuator
     wb_motor_set_velocity(front_left_wheel, front_left_speed);
     wb_motor_set_velocity(front_right_wheel, front_right_speed);
     wb_motor_set_velocity(back_left_wheel, back_left_speed);
     wb_motor_set_velocity(back_right_wheel, back_right_speed);
 
-    // reset dynamic variables to zero
+    // reset variabel dinamis ke 0
     left_obstacle = 0.0;
     right_obstacle = 0.0;
   }
